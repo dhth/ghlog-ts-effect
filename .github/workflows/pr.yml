@@ -1,0 +1,71 @@
+name: pr
+
+on:
+  pull_request:
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
+    outputs:
+      ts: ${{ steps.filter.outputs.ts }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+      yml: ${{ steps.filter.outputs.yml }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            ts:
+              - "src/**"
+              - ".node-version"
+              - "biome.json"
+              - "package-lock.json"
+              - "package.json"
+              - "tsconfig.json"
+              - "vitest.config.ts"
+              - ".github/workflows/pr.yml"
+            workflows:
+              - ".github/workflows/**/*.yml"
+            yml:
+              - "**/*.yml"
+              - "**/*.yaml"
+
+  build:
+    needs: changes
+    if: ${{ needs.changes.outputs.ts == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Run checks
+        run: npm run ci
+      - name: Build
+        run: npm run build
+
+  lint-yaml:
+    needs: changes
+    if: ${{ needs.changes.outputs.yml == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - uses: dhth/composite-actions/.github/actions/lint-yaml@main
+
+  lint-workflows:
+    needs: changes
+    if: ${{ needs.changes.outputs.workflows == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - uses: dhth/composite-actions/.github/actions/lint-actions@main

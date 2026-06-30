@@ -1,0 +1,28 @@
+{
+  "name": "ghlog-ts-effect",
+  "version": "0.1.0",
+  "description": "",
+  "bin": {
+    "ghlog-ts": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "postbuild": "chmod +x dist/index.js",
+    "check": "tsc -p tsconfig.json",
+    "ci": "biome ci src",
+    "dev": "tsx src/index.ts",
+    "format": "biome format --write src",
+    "lint:fix": "biome check --write src",
+    "lint": "biome check src test vitest.*.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@biomejs/biome": "2.4.16",
+    "@types/node": "^25.9.2",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}
