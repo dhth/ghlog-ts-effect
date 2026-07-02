@@ -269,7 +269,7 @@ function parseAndDecodePayload(
     input: unknown,
     eventId: string,
 ): Effect.Effect<EventPayload, DecodePayloadError> {
-    const decodeInto = <A>(schema: Schema.Schema<A>) =>
+    const decodeInto = <A, I>(schema: Schema.Schema<A, I>) =>
         Schema.decodeUnknown(schema)(input).pipe(
             Effect.mapError(
                 (cause) =>
