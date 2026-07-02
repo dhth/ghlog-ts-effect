@@ -269,14 +269,18 @@ function parseAndDecodePayload(
     input: unknown,
     eventId: string,
 ): Effect.Effect<EventPayload, DecodePayloadError> {
+    const decodeInto = <A>(schema: Schema.Schema<A>) =>
+        Schema.decodeUnknown(schema)(input).pipe(
+            Effect.mapError(
+                (cause) =>
+                    new DecodePayloadError({ eventId, eventType, cause }),
+            ),
+        );
+
     switch (eventType) {
         case "CreateEvent":
             return pipe(
-                Schema.decodeUnknown(RawCreateEventPayload)(input),
-                Effect.mapError(
-                    (cause) =>
-                        new DecodePayloadError({ eventId, eventType, cause }),
-                ),
+                decodeInto(RawCreateEventPayload),
                 Effect.map((payload) => {
                     return {
                         kind: "create",
@@ -287,11 +291,7 @@ function parseAndDecodePayload(
             );
         case "DeleteEvent":
             return pipe(
-                Schema.decodeUnknown(RawDeleteEventPayload)(input),
-                Effect.mapError(
-                    (cause) =>
-                        new DecodePayloadError({ eventId, eventType, cause }),
-                ),
+                decodeInto(RawDeleteEventPayload),
                 Effect.map((payload) => {
                     return {
                         kind: "delete",
@@ -302,11 +302,7 @@ function parseAndDecodePayload(
             );
         case "IssueCommentEvent":
             return pipe(
-                Schema.decodeUnknown(RawIssueCommentEventPayload)(input),
-                Effect.mapError(
-                    (cause) =>
-                        new DecodePayloadError({ eventId, eventType, cause }),
-                ),
+                decodeInto(RawIssueCommentEventPayload),
                 Effect.map((payload) => {
                     return {
                         kind: "issue_comment",
@@ -318,11 +314,7 @@ function parseAndDecodePayload(
             );
         case "IssuesEvent":
             return pipe(
-                Schema.decodeUnknown(RawIssuesEventPayload)(input),
-                Effect.mapError(
-                    (cause) =>
-                        new DecodePayloadError({ eventId, eventType, cause }),
-                ),
+                decodeInto(RawIssuesEventPayload),
                 Effect.map((payload) => {
                     return {
                         kind: "issues",
@@ -333,11 +325,7 @@ function parseAndDecodePayload(
             );
         case "PullRequestEvent":
             return pipe(
-                Schema.decodeUnknown(RawPullRequestEventPayload)(input),
-                Effect.mapError(
-                    (cause) =>
-                        new DecodePayloadError({ eventId, eventType, cause }),
-                ),
+                decodeInto(RawPullRequestEventPayload),
                 Effect.map((payload) => {
                     return {
                         kind: "pull_request",
@@ -348,11 +336,7 @@ function parseAndDecodePayload(
             );
         case "PullRequestReviewEvent":
             return pipe(
-                Schema.decodeUnknown(RawPullRequestReviewEventPayload)(input),
-                Effect.mapError(
-                    (cause) =>
-                        new DecodePayloadError({ eventId, eventType, cause }),
-                ),
+                decodeInto(RawPullRequestReviewEventPayload),
                 Effect.map((payload) => {
                     return {
                         kind: "pull_request_review",
@@ -364,11 +348,7 @@ function parseAndDecodePayload(
             );
         case "PushEvent":
             return pipe(
-                Schema.decodeUnknown(RawPushEventPayload)(input),
-                Effect.mapError(
-                    (cause) =>
-                        new DecodePayloadError({ eventId, eventType, cause }),
-                ),
+                decodeInto(RawPushEventPayload),
                 Effect.map((payload) => {
                     return {
                         kind: "push",
@@ -380,11 +360,7 @@ function parseAndDecodePayload(
             );
         case "ReleaseEvent":
             return pipe(
-                Schema.decodeUnknown(RawReleaseEventPayload)(input),
-                Effect.mapError(
-                    (cause) =>
-                        new DecodePayloadError({ eventId, eventType, cause }),
-                ),
+                decodeInto(RawReleaseEventPayload),
                 Effect.map((payload) => {
                     return {
                         kind: "release",
