@@ -50,4 +50,4 @@ test-all:
     just test-e2e
 
 update-snapshots:
-    npm run test:e2e -- -u
+    npm run test -- -u
