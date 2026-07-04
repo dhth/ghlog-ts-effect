@@ -104,6 +104,44 @@ export function getResponseFromGitHub(
     );
 }
 
+export function getResponseFromGitHubGen(
+    username: string,
+    page: number,
+    token: string,
+): Effect.Effect<unknown, GitHubFetchError, HttpClient.HttpClient> {
+    const url = new URL(`${GITHUB_API_BASE}/users/${username}/events/public`);
+    url.searchParams.set("per_page", String(GITHUB_API_MAX_PER_PAGE));
+    url.searchParams.set("page", String(page));
+    const headers = {
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": GITHUB_API_VERSION,
+        Authorization: `Bearer ${token}`,
+    };
+
+    return Effect.gen(function* () {
+        const response = yield* HttpClient.get(url, { headers }).pipe(
+            Effect.mapError((cause) => new RequestFailedError({ cause })),
+        );
+
+        const body = yield* response.text.pipe(
+            Effect.mapError(
+                (cause) => new CouldntReadResponseBodyError({ cause }),
+            ),
+        );
+
+        if (response.status !== 200) {
+            return yield* new NonSuccessStatusCodeError({
+                code: response.status,
+                body,
+            });
+        }
+
+        return yield* parseJson(body).pipe(
+            Effect.mapError(() => new ResponseNotJsonError({ body })),
+        );
+    });
+}
+
 function parseJson(input: string): Effect.Effect<unknown, Error> {
     return Effect.try({
         try: () => JSON.parse(input) as unknown,
