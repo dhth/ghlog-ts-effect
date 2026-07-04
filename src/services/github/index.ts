@@ -82,7 +82,7 @@ export function getResponseFromGitHub(
                         { body: string },
                         NonSuccessStatusCodeError
                     > => {
-                        if (statusCode < 200 || statusCode >= 300) {
+                        if (statusCode !== 200) {
                             return Effect.fail(
                                 new NonSuccessStatusCodeError({
                                     code: statusCode,
