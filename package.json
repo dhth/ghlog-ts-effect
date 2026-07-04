@@ -29,6 +29,7 @@
     "vitest": "3.2.6"
   },
   "dependencies": {
+    "@effect/platform": "^0.96.2",
     "effect": "^3.21.4"
   }
 }
