@@ -2,11 +2,11 @@ import { FetchHttpClient } from "@effect/platform";
 import { Console, Effect, pipe } from "effect";
 import { decodeEvents, type Event } from "./domain/event.js";
 import { formatError } from "./errors.js";
-import { getResponseFromGitHub } from "./services/github/index.js";
+import { getResponseFromGitHubGen } from "./services/github/index.js";
 
 function main() {
     const run = pipe(
-        getResponseFromGitHub("dhth", 1, "<token>"),
+        getResponseFromGitHubGen("dhth", 1, "<token>"),
         Effect.flatMap(decodeEvents),
         Effect.map((events) => events.map(formatEvent).join("\n")),
         Effect.matchEffect({
