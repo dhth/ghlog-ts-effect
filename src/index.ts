@@ -1,12 +1,15 @@
 import { FetchHttpClient } from "@effect/platform";
-import { Console, Effect, pipe } from "effect";
+import { NodeContext } from "@effect/platform-node";
+import { Console, Effect, Layer, pipe } from "effect";
+import { getToken } from "./auth.js";
 import { decodeEvents, type Event } from "./domain/event.js";
 import { formatError } from "./errors.js";
 import { getResponseFromGitHubGen } from "./services/github/index.js";
 
 function main() {
     const run = pipe(
-        getResponseFromGitHubGen("dhth", 1, "<token>"),
+        getToken(),
+        Effect.flatMap((token) => getResponseFromGitHubGen("dhth", 1, token)),
         Effect.flatMap(decodeEvents),
         Effect.map((events) => events.map(formatEvent).join("\n")),
         Effect.matchEffect({
@@ -21,7 +24,8 @@ function main() {
         }),
     );
 
-    const program = run.pipe(Effect.provide(FetchHttpClient.layer));
+    const appLayer = Layer.mergeAll(FetchHttpClient.layer, NodeContext.layer);
+    const program = run.pipe(Effect.provide(appLayer));
 
     Effect.runPromise(program);
 }
