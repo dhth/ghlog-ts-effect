@@ -1,5 +1,5 @@
 import { HttpClient, type HttpClientError } from "@effect/platform";
-import { Data, Effect } from "effect";
+import { Data, Effect, Redacted } from "effect";
 
 const GITHUB_API_BASE = "https://api.github.com";
 const GITHUB_API_VERSION = "2026-03-10";
@@ -107,7 +107,7 @@ export function getResponseFromGitHub(
 export function getResponseFromGitHubGen(
     username: string,
     page: number,
-    token: string,
+    token: Redacted.Redacted<string>,
 ): Effect.Effect<unknown, GitHubFetchError, HttpClient.HttpClient> {
     const url = new URL(`${GITHUB_API_BASE}/users/${username}/events/public`);
     url.searchParams.set("per_page", String(GITHUB_API_MAX_PER_PAGE));
@@ -115,7 +115,7 @@ export function getResponseFromGitHubGen(
     const headers = {
         Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": GITHUB_API_VERSION,
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${Redacted.value(token)}`,
     };
 
     return Effect.gen(function* () {
