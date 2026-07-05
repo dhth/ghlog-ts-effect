@@ -1,6 +1,6 @@
 import type { CommandExecutor } from "@effect/platform/CommandExecutor";
 import type { PlatformError } from "@effect/platform/Error";
-import { Data, Effect, Redacted } from "effect";
+import { Cause, Data, Duration, Effect, Redacted } from "effect";
 import { runCommand } from "./utils/command.js";
 
 const ENV_VAR_TOKEN = "GHLOG_TOKEN";
@@ -63,19 +63,34 @@ ${this.stderr}---`;
     }
 }
 
+export class GhTimedOutError extends Data.TaggedError("GhTimedOutError") {
+    override get message(): string {
+        return "running `gh` timed out";
+    }
+}
+
 export type GetTokenFromGhError =
     | CouldntRunGhError
-    | GhExitedWithNonSuccessCodeError;
+    | GhExitedWithNonSuccessCodeError
+    | GhTimedOutError;
 
 function getTokenFromGh(): Effect.Effect<
     Redacted.Redacted<string>,
     GetTokenFromGhError,
     CommandExecutor
 > {
-    const result = runCommand("gh", "auth", "token");
+    const result = runCommand("gh", "auth", "token").pipe(
+        Effect.timeout(Duration.seconds(10)),
+    );
 
     return result.pipe(
-        Effect.mapError((cause) => new CouldntRunGhError({ cause })),
+        Effect.mapError((cause) => {
+            if (Cause.isTimeoutException(cause)) {
+                return new GhTimedOutError();
+            }
+
+            return new CouldntRunGhError({ cause });
+        }),
         Effect.flatMap((result) => {
             if (result.exitCode !== 0) {
                 return Effect.fail(
