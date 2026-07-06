@@ -4,6 +4,7 @@ import { Console, Effect, Layer, pipe } from "effect";
 import { getToken } from "./auth.js";
 import { decodeEvents, type Event } from "./domain/event.js";
 import { formatError } from "./errors.js";
+import { GhCli } from "./services/github/cli.js";
 import { getResponseFromGitHubGen } from "./services/github/index.js";
 
 function main() {
@@ -24,7 +25,9 @@ function main() {
         }),
     );
 
-    const appLayer = Layer.mergeAll(FetchHttpClient.layer, NodeContext.layer);
+    const ghCliLayer = GhCli.Default.pipe(Layer.provide(NodeContext.layer));
+
+    const appLayer = Layer.mergeAll(FetchHttpClient.layer, ghCliLayer);
     const program = run.pipe(Effect.provide(appLayer));
 
     Effect.runPromise(program);
