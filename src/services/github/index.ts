@@ -53,60 +53,6 @@ type GitHubFetchError =
 export function getResponseFromGitHub(
     username: string,
     page: number,
-    token: string,
-): Effect.Effect<unknown, GitHubFetchError, HttpClient.HttpClient> {
-    const url = new URL(`${GITHUB_API_BASE}/users/${username}/events/public`);
-    url.searchParams.set("per_page", String(GITHUB_API_MAX_PER_PAGE));
-    url.searchParams.set("page", String(page));
-
-    return HttpClient.get(url, {
-        headers: {
-            Accept: "application/vnd.github+json",
-            "X-GitHub-Api-Version": GITHUB_API_VERSION,
-            Authorization: `Bearer ${token}`,
-        },
-    }).pipe(
-        Effect.mapError((error) => new RequestFailedError({ cause: error })),
-        Effect.flatMap((response) =>
-            response.text.pipe(
-                Effect.mapError(
-                    (error) =>
-                        new CouldntReadResponseBodyError({ cause: error }),
-                ),
-                Effect.map((body) => ({ statusCode: response.status, body })),
-                Effect.flatMap(
-                    ({
-                        statusCode,
-                        body,
-                    }): Effect.Effect<
-                        { body: string },
-                        NonSuccessStatusCodeError
-                    > => {
-                        if (statusCode !== 200) {
-                            return Effect.fail(
-                                new NonSuccessStatusCodeError({
-                                    code: statusCode,
-                                    body,
-                                }),
-                            );
-                        }
-
-                        return Effect.succeed({ body });
-                    },
-                ),
-            ),
-        ),
-        Effect.flatMap(({ body }) =>
-            parseJson(body).pipe(
-                Effect.mapError((_) => new ResponseNotJsonError({ body })),
-            ),
-        ),
-    );
-}
-
-export function getResponseFromGitHubGen(
-    username: string,
-    page: number,
     token: Redacted.Redacted<string>,
 ): Effect.Effect<unknown, GitHubFetchError, HttpClient.HttpClient> {
     const url = new URL(`${GITHUB_API_BASE}/users/${username}/events/public`);

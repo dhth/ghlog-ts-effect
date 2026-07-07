@@ -5,12 +5,12 @@ import { getToken } from "./auth.js";
 import { decodeEvents, type Event } from "./domain/event.js";
 import { formatError } from "./errors.js";
 import { GhCli } from "./services/github/cli.js";
-import { getResponseFromGitHubGen } from "./services/github/index.js";
+import { getResponseFromGitHub } from "./services/github/index.js";
 
 function main() {
     const run = pipe(
         getToken(),
-        Effect.flatMap((token) => getResponseFromGitHubGen("dhth", 1, token)),
+        Effect.flatMap((token) => getResponseFromGitHub("dhth", 1, token)),
         Effect.flatMap(decodeEvents),
         Effect.map((events) => events.map(formatEvent).join("\n")),
         Effect.matchEffect({
