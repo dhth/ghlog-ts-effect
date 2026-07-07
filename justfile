@@ -4,6 +4,7 @@ alias a := all
 alias b := build
 alias c := check
 alias f := fmt
+alias fl := fmt-lint-fix
 alias l := lint
 alias lf := lint-fix
 alias r := run
@@ -18,8 +19,7 @@ alias us := update-snapshots
 all:
     just check
     just lint
-    just build
-    just test-all
+    just test
 
 build:
     npm run build
@@ -29,6 +29,10 @@ check:
 
 fmt:
     npm run format
+
+fmt-lint-fix:
+    just fmt
+    just lint-fix
 
 lint:
     npm run lint

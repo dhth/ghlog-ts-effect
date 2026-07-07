@@ -1,9 +1,42 @@
 import { HttpClient, type HttpClientError } from "@effect/platform";
 import { Data, Effect, Redacted } from "effect";
+import {
+    type DecodeError,
+    decodeEvents,
+    type Event,
+} from "../../domain/event.js";
 
 const GITHUB_API_BASE = "https://api.github.com";
 const GITHUB_API_VERSION = "2026-03-10";
 const GITHUB_API_MAX_PER_PAGE = 100;
+
+export type FetchEventsError = GitHubFetchError | DecodeError;
+
+export class GitHubService extends Effect.Service<GitHubService>()(
+    "GitHubService",
+    {
+        accessors: true,
+        effect: Effect.gen(function* () {
+            const httpClient = yield* HttpClient.HttpClient;
+
+            return {
+                getEventsForUser: (
+                    username: string,
+                    page: number,
+                    token: Redacted.Redacted<string>,
+                ): Effect.Effect<Event[], FetchEventsError, never> => {
+                    return getResponseFromGitHub(username, page, token).pipe(
+                        Effect.provideService(
+                            HttpClient.HttpClient,
+                            httpClient,
+                        ),
+                        Effect.flatMap(decodeEvents),
+                    );
+                },
+            } as const;
+        }),
+    },
+) {}
 
 export class RequestFailedError extends Data.TaggedError("RequestFailedError")<{
     cause: HttpClientError.HttpClientError;
@@ -44,13 +77,13 @@ export class ResponseNotJsonError extends Data.TaggedError(
     }
 }
 
-type GitHubFetchError =
+export type GitHubFetchError =
     | RequestFailedError
     | CouldntReadResponseBodyError
     | NonSuccessStatusCodeError
     | ResponseNotJsonError;
 
-export function getResponseFromGitHub(
+function getResponseFromGitHub(
     username: string,
     page: number,
     token: Redacted.Redacted<string>,
