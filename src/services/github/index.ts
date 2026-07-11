@@ -9,6 +9,7 @@ import {
     decodeEvents,
     type Event,
 } from "../../domain/event.js";
+import type { EventLimit } from "../../domain/limit.js";
 
 const GITHUB_API_BASE = "https://api.github.com";
 const GITHUB_API_VERSION = "2026-03-10";
@@ -24,15 +25,14 @@ export class GitHubService extends Effect.Service<GitHubService>()(
             return {
                 getEventsForUser: (
                     username: string,
-                    page: number,
+                    limit: EventLimit,
                     token: Redacted.Redacted<string>,
                 ): Effect.Effect<Event[], FetchEventsError, never> => {
-                    return fetchEvents(username, page, token).pipe(
+                    return collectEvents(username, limit, token).pipe(
                         Effect.provideService(
                             HttpClient.HttpClient,
                             httpClient,
                         ),
-                        Effect.map((githubPage) => githubPage.events),
                     );
                 },
             } as const;
@@ -91,6 +91,35 @@ type GitHubPage = {
 };
 
 export type FetchEventsError = GitHubFetchError | DecodeError;
+
+function collectEvents(
+    username: string,
+    limit: EventLimit,
+    token: Redacted.Redacted<string>,
+): Effect.Effect<Event[], FetchEventsError, HttpClient.HttpClient> {
+    return Effect.gen(function* () {
+        const collectedEvents: Event[] = [];
+        let page = 1;
+
+        while (true) {
+            const responsePage = yield* fetchEvents(username, page, token);
+            for (const event of responsePage.events) {
+                collectedEvents.push(event);
+
+                if (collectedEvents.length >= limit) {
+                    return collectedEvents;
+                }
+            }
+
+            if (!responsePage.hasNextPage) {
+                break;
+            }
+            page += 1;
+        }
+
+        return collectedEvents;
+    });
+}
 
 function fetchEvents(
     username: string,
