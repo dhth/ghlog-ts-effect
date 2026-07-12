@@ -27,12 +27,12 @@ function main() {
         }),
     );
 
-    const ghCliLayer = GhCli.Default.pipe(Layer.provide(NodeContext.layer));
-    const githubServiceLayer = GitHubEvents.Default.pipe(
+    const ghCli = GhCli.Default.pipe(Layer.provide(NodeContext.layer));
+    const ghEvents = GitHubEvents.Default.pipe(
         Layer.provide(FetchHttpClient.layer),
     );
 
-    const appLayer = Layer.mergeAll(ghCliLayer, githubServiceLayer);
+    const appLayer = Layer.mergeAll(ghCli, ghEvents);
     const program = run.pipe(Effect.provide(appLayer));
 
     Effect.runPromise(program);
