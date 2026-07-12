@@ -15,8 +15,8 @@ const GITHUB_API_BASE = "https://api.github.com";
 const GITHUB_API_VERSION = "2026-03-10";
 const GITHUB_API_MAX_PER_PAGE = 100;
 
-export class GitHubService extends Effect.Service<GitHubService>()(
-    "GitHubService",
+export class GitHubEvents extends Effect.Service<GitHubEvents>()(
+    "GitHubEvents",
     {
         accessors: true,
         effect: Effect.gen(function* () {
