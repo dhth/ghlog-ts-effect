@@ -10,11 +10,20 @@ import { GitHubEvents } from "./services/github/events.js";
 
 function main() {
     const run = pipe(
-        getToken(),
-        Effect.flatMap((token) =>
-            GitHubEvents.getEventsForUser("dhth", EventLimit.make(10), token),
-        ),
+        GitHubEvents.getEventsForUser("dhth", EventLimit.make(10)),
         Effect.map((events) => events.map(formatEvent).join("\n")),
+    );
+
+    const ghCliLayer = GhCli.Default.pipe(Layer.provide(NodeContext.layer));
+    const ghEventsLayer = getToken().pipe(
+        Effect.provide(ghCliLayer),
+        Effect.map((token) => GitHubEvents.Default({ token })),
+        Layer.unwrapEffect,
+    );
+
+    const program = run.pipe(
+        Effect.provide(ghEventsLayer),
+        Effect.provide(FetchHttpClient.layer),
         Effect.matchEffect({
             onSuccess: (result) => Console.log(`${result}`),
             onFailure: (error) =>
@@ -26,14 +35,6 @@ function main() {
                 ),
         }),
     );
-
-    const ghCli = GhCli.Default.pipe(Layer.provide(NodeContext.layer));
-    const ghEvents = GitHubEvents.Default.pipe(
-        Layer.provide(FetchHttpClient.layer),
-    );
-
-    const appLayer = Layer.mergeAll(ghCli, ghEvents);
-    const program = run.pipe(Effect.provide(appLayer));
 
     Effect.runPromise(program);
 }

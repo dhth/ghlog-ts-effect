@@ -2,8 +2,9 @@ import {
     type Headers,
     HttpClient,
     type HttpClientError,
+    HttpClientRequest,
 } from "@effect/platform";
-import { Data, Effect, Redacted } from "effect";
+import { Data, Effect, type Redacted } from "effect";
 import {
     type DecodeError,
     decodeEvents,
@@ -19,24 +20,37 @@ export class GitHubEvents extends Effect.Service<GitHubEvents>()(
     "GitHubEvents",
     {
         accessors: true,
-        effect: Effect.gen(function* () {
-            const httpClient = yield* HttpClient.HttpClient;
-
-            return {
-                getEventsForUser: (
-                    username: string,
-                    limit: EventLimit,
-                    token: Redacted.Redacted<string>,
-                ): Effect.Effect<Event[], FetchEventsError, never> => {
-                    return collectEvents(username, limit, token).pipe(
-                        Effect.provideService(
-                            HttpClient.HttpClient,
-                            httpClient,
+        effect: (options: { readonly token: Redacted.Redacted<string> }) =>
+            Effect.gen(function* () {
+                const httpClient = (yield* HttpClient.HttpClient).pipe(
+                    HttpClient.mapRequest((request) =>
+                        request.pipe(
+                            HttpClientRequest.accept(
+                                "application/vnd.github+json",
+                            ),
+                            HttpClientRequest.setHeader(
+                                "X-GitHub-Api-Version",
+                                GITHUB_API_VERSION,
+                            ),
+                            HttpClientRequest.bearerToken(options.token),
                         ),
-                    );
-                },
-            } as const;
-        }),
+                    ),
+                );
+
+                return {
+                    getEventsForUser: (
+                        username: string,
+                        limit: EventLimit,
+                    ): Effect.Effect<Event[], FetchEventsError, never> => {
+                        return collectEvents(username, limit).pipe(
+                            Effect.provideService(
+                                HttpClient.HttpClient,
+                                httpClient,
+                            ),
+                        );
+                    },
+                } as const;
+            }),
     },
 ) {}
 
@@ -95,14 +109,13 @@ export type FetchEventsError = GitHubFetchError | DecodeError;
 function collectEvents(
     username: string,
     limit: EventLimit,
-    token: Redacted.Redacted<string>,
 ): Effect.Effect<Event[], FetchEventsError, HttpClient.HttpClient> {
     return Effect.gen(function* () {
         const collectedEvents: Event[] = [];
         let page = 1;
 
         while (true) {
-            const responsePage = yield* fetchEvents(username, page, token);
+            const responsePage = yield* fetchEvents(username, page);
             for (const event of responsePage.events) {
                 collectedEvents.push(event);
 
@@ -124,19 +137,13 @@ function collectEvents(
 function fetchEvents(
     username: string,
     page: number,
-    token: Redacted.Redacted<string>,
 ): Effect.Effect<GitHubPage, FetchEventsError, HttpClient.HttpClient> {
     const url = new URL(`${GITHUB_API_BASE}/users/${username}/events/public`);
     url.searchParams.set("per_page", String(GITHUB_API_MAX_PER_PAGE));
     url.searchParams.set("page", String(page));
-    const headers = {
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": GITHUB_API_VERSION,
-        Authorization: `Bearer ${Redacted.value(token)}`,
-    };
 
     return Effect.gen(function* () {
-        const response = yield* HttpClient.get(url, { headers }).pipe(
+        const response = yield* HttpClient.get(url).pipe(
             Effect.mapError((cause) => new RequestFailedError({ cause })),
         );
 
