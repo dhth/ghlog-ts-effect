@@ -1,8 +1,12 @@
-import { HttpClient, HttpClientResponse } from "@effect/platform";
+import {
+    HttpClient,
+    HttpClientError,
+    HttpClientResponse,
+} from "@effect/platform";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Redacted } from "effect";
 import { EventLimit } from "../../domain/limit.js";
-import { GitHubEvents } from "./events.js";
+import { type FetchEventsError, GitHubEvents } from "./events.js";
 
 const FAKE_PAGE_SIZE = 10;
 
@@ -177,5 +181,90 @@ describe("GitHubEvents", () => {
                     expectedCount: FAKE_PAGE_SIZE * 2 + 2,
                 }),
         );
+    });
+
+    describe("failures", () => {
+        function expectGetEventsFailure(
+            client: HttpClient.HttpClient,
+            expectedTag: FetchEventsError["_tag"],
+        ) {
+            // GIVEN
+            const httpClient = Layer.succeed(HttpClient.HttpClient, client);
+            const ghEvents = GitHubEvents.Default({ token }).pipe(
+                Layer.provide(httpClient),
+            );
+
+            // WHEN
+            const program = GitHubEvents.getEventsForUser(
+                username,
+                EventLimit.make(FAKE_PAGE_SIZE),
+            ).pipe(Effect.provide(ghEvents));
+
+            // THEN
+            return program.pipe(
+                Effect.flip,
+                Effect.tap((error) =>
+                    Effect.sync(() => {
+                        expect(error._tag).toBe(expectedTag);
+                    }),
+                ),
+            );
+        }
+
+        it.effect("fails when the HTTP request fails", () => {
+            const httpClient = HttpClient.make((request) =>
+                Effect.fail(
+                    new HttpClientError.RequestError({
+                        request,
+                        reason: "Transport",
+                        cause: new Error("connection refused"),
+                    }),
+                ),
+            );
+
+            return expectGetEventsFailure(httpClient, "RequestFailedError");
+        });
+
+        it.effect("fails when GitHub returns a non-success status", () => {
+            const httpClient = HttpClient.make((request) =>
+                Effect.succeed(
+                    HttpClientResponse.fromWeb(
+                        request,
+                        new Response("internal server error", { status: 500 }),
+                    ),
+                ),
+            );
+
+            return expectGetEventsFailure(
+                httpClient,
+                "NonSuccessStatusCodeError",
+            );
+        });
+
+        it.effect("fails when GitHub returns malformed JSON", () => {
+            const httpClient = HttpClient.make((request) =>
+                Effect.succeed(
+                    HttpClientResponse.fromWeb(
+                        request,
+                        new Response("not valid JSON"),
+                    ),
+                ),
+            );
+
+            return expectGetEventsFailure(httpClient, "ResponseNotJsonError");
+        });
+
+        it.effect("fails when GitHub returns undecodable JSON", () => {
+            const httpClient = HttpClient.make((request) =>
+                Effect.succeed(
+                    HttpClientResponse.fromWeb(
+                        request,
+                        new Response(JSON.stringify({ events: [] })),
+                    ),
+                ),
+            );
+
+            return expectGetEventsFailure(httpClient, "DecodeEnvelopeError");
+        });
     });
 });
