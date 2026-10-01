@@ -1,9 +1,9 @@
-name: pr
+name: main
 
 on:
   push:
     branches:
-      - 'main'
+      - main
 
 jobs:
   changes:
@@ -23,18 +23,23 @@ jobs:
           filters: |
             ts:
               - "src/**"
-              - ".node-version"
+              - "mise.toml"
+              - "mise.lock"
               - "biome.json"
               - "package-lock.json"
               - "package.json"
-              - "tsconfig.json"
+              - "tsconfig*.json"
               - "vitest.config.ts"
               - ".github/workflows/main.yml"
             workflows:
               - ".github/workflows/**/*.yml"
+              - "mise.toml"
+              - "mise.lock"
             yml:
               - "**/*.yml"
               - "**/*.yaml"
+              - "mise.toml"
+              - "mise.lock"
 
   build:
     needs: changes
@@ -42,18 +47,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v4
+      - name: Set up mise
+        uses: jdx/mise-action@v4
         with:
-          node-version-file: '.node-version'
-          cache: npm
+          install_args: --locked node
+      - name: Cache npm downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
       - name: Install
-        run: npm ci
+        run: mise run deps
       - name: Run checks
-        run: npm run ci
+        run: mise run lint:ci
       - name: Run tests
-        run: npm run test
+        run: mise run test
       - name: Build
-        run: npm run build
+        run: mise run build
 
   lint-yaml:
     needs: changes
@@ -62,7 +74,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - uses: dhth/composite-actions/.github/actions/lint-yaml@main
+      - name: Set up mise
+        uses: jdx/mise-action@v4
+        with:
+          install_args: --locked yamlfmt
+      - name: Lint YAML
+        run: mise run lint:yaml
 
   lint-workflows:
     needs: changes
@@ -71,4 +88,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - uses: dhth/composite-actions/.github/actions/lint-actions@main
+      - name: Set up mise
+        uses: jdx/mise-action@v4
+        with:
+          install_args: --locked actionlint
+      - name: Lint workflows
+        run: mise run lint:actions

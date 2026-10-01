@@ -1,0 +1,93 @@
+min_version = "2026.9.17"
+
+[settings]
+task.run_auto_install = false
+
+[env]
+_.file = { path = ".env", redact = true }
+
+[tools]
+node = "26.4.0"
+actionlint = "latest"
+yamlfmt = "latest"
+
+[tasks.deps]
+description = "Install locked npm dependencies"
+run = "npm ci"
+
+[tasks.all]
+alias = "a"
+description = "Typecheck, lint, and test"
+run = [
+    { task = "check" },
+    { task = "lint" },
+    { task = "test" },
+]
+
+[tasks.build]
+alias = "b"
+description = "Build the application"
+run = "npm run build"
+
+[tasks.check]
+alias = "c"
+description = "Typecheck source and tests"
+run = "npm run check"
+
+[tasks.fmt]
+alias = "f"
+description = "Format source files"
+run = "npm run format"
+
+[tasks."fmt-lint-fix"]
+alias = "fl"
+description = "Format source files and apply lint fixes"
+run = [
+    { task = "fmt" },
+    { task = "lint:fix" },
+]
+
+[tasks.lint]
+alias = "l"
+description = "Check formatting and lint source files"
+run = "npm run lint"
+
+[tasks."lint:ci"]
+description = "Run Biome's CI checks"
+run = "npm run lint:ci"
+
+[tasks."lint:fix"]
+alias = ["lf", "lint-fix"]
+description = "Apply formatting and lint fixes"
+run = "npm run lint:fix"
+
+[tasks.run]
+alias = "r"
+description = "Run the application"
+raw_args = true
+run = "npm run dev --"
+
+[tasks.test]
+alias = "t"
+description = "Run tests"
+raw_args = true
+run = "npm run test --"
+
+[tasks."update-snapshots"]
+alias = "us"
+description = "Update test snapshots"
+run = "npm run test -- -u"
+
+[tasks."lint:actions"]
+description = "Lint GitHub Actions workflows"
+run = "actionlint"
+
+[tasks."lint:yaml"]
+description = "Lint YAML files"
+run = '''
+yamlfmt \
+    -lint \
+    -quiet \
+    -formatter 'retain_line_breaks_single=true' \
+    $(git ls-files '*.yml' '*.yaml')
+'''
