@@ -1,8 +1,8 @@
 import { Schema } from "effect";
 
 export const EventLimit = Schema.Number.pipe(
-    Schema.int(),
-    Schema.between(1, 300),
+    Schema.check(Schema.isInt()),
+    Schema.check(Schema.isBetween({ minimum: 1, maximum: 300 })),
     Schema.brand("EventLimit"),
 );
 

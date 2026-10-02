@@ -1,10 +1,7 @@
-import { Command } from "@effect/platform";
-import type {
-    CommandExecutor,
-    ExitCode,
-} from "@effect/platform/CommandExecutor";
-import type { PlatformError } from "@effect/platform/Error";
 import { Effect, String as EffectString, Stream } from "effect";
+import type { PlatformError } from "effect/PlatformError";
+import { ChildProcess, type ChildProcessSpawner } from "effect/process";
+import type { ExitCode } from "effect/process/ChildProcessSpawner";
 
 export type CommandResult = {
     exitCode: ExitCode;
@@ -16,11 +13,13 @@ export type CommandResult = {
 export function runCommand(
     command: string,
     ...args: Array<string>
-): Effect.Effect<CommandResult, PlatformError, CommandExecutor> {
+): Effect.Effect<
+    CommandResult,
+    PlatformError,
+    ChildProcessSpawner.ChildProcessSpawner
+> {
     const result = Effect.gen(function* () {
-        const cmd = Command.make(command, ...args);
-
-        const process = yield* Command.start(cmd);
+        const process = yield* ChildProcess.make(command, args);
 
         const [exitCode, stdout, stderr] = yield* Effect.all(
             [
@@ -46,6 +45,6 @@ function streamToString<E, R>(
 ): Effect.Effect<string, E, R> {
     return stream.pipe(
         Stream.decodeText(),
-        Stream.runFold(EffectString.empty, EffectString.concat),
+        Stream.runFold(() => EffectString.empty, EffectString.concat),
     );
 }

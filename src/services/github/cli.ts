@@ -1,6 +1,14 @@
-import { CommandExecutor } from "@effect/platform/CommandExecutor";
-import type { PlatformError } from "@effect/platform/Error";
-import { Cause, Data, Duration, Effect, Redacted } from "effect";
+import {
+    Cause,
+    Context,
+    Data,
+    Duration,
+    Effect,
+    Layer,
+    Redacted,
+} from "effect";
+import type { PlatformError } from "effect/PlatformError";
+import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner";
 import { runCommand } from "../../utils/command.js";
 
 export class CouldntRunGhError extends Data.TaggedError("CouldntRunGhError")<{
@@ -49,10 +57,9 @@ export type AuthTokenError =
     | GhTimedOutError
     | GhReturnedEmptyTokenError;
 
-export class GhCli extends Effect.Service<GhCli>()("GhCli", {
-    accessors: true,
-    effect: Effect.gen(function* () {
-        const commandExecutor = yield* CommandExecutor;
+export class GhCli extends Context.Service<GhCli>()("GhCli", {
+    make: Effect.gen(function* () {
+        const spawner = yield* ChildProcessSpawner;
 
         return {
             authToken: (): Effect.Effect<
@@ -61,13 +68,13 @@ export class GhCli extends Effect.Service<GhCli>()("GhCli", {
                 never
             > => {
                 const result = runCommand("gh", "auth", "token").pipe(
-                    Effect.provideService(CommandExecutor, commandExecutor),
+                    Effect.provideService(ChildProcessSpawner, spawner),
                     Effect.timeout(Duration.seconds(10)),
                 );
 
                 return result.pipe(
                     Effect.mapError((cause) => {
-                        if (Cause.isTimeoutException(cause)) {
+                        if (Cause.isTimeoutError(cause)) {
                             return new GhTimedOutError();
                         }
 
@@ -105,4 +112,6 @@ export class GhCli extends Effect.Service<GhCli>()("GhCli", {
             },
         } as const;
     }),
-}) {}
+}) {
+    static readonly layer = Layer.effect(this, this.make);
+}

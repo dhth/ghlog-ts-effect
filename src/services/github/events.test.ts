@@ -1,10 +1,6 @@
-import {
-    HttpClient,
-    HttpClientError,
-    HttpClientResponse,
-} from "@effect/platform";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Redacted } from "effect";
+import { HttpClient, HttpClientError, HttpClientResponse } from "effect/http";
 import { EventLimit } from "../../domain/limit.js";
 import { type FetchEventsError, GitHubEvents } from "./events.js";
 
@@ -46,8 +42,10 @@ describe("GitHubEvents", () => {
             return HttpClient.make((request, url) => {
                 const page = Number(url.searchParams.get("page"));
                 if (!Number.isInteger(page) || page < 1) {
-                    return Effect.dieMessage(
-                        `expected a positive page number, got '${page}'`,
+                    return Effect.die(
+                        new Error(
+                            `expected a positive page number, got '${page}'`,
+                        ),
                     );
                 }
 
@@ -95,14 +93,13 @@ describe("GitHubEvents", () => {
                 HttpClient.HttpClient,
                 fakeSuccessfulClient,
             );
-            const ghEvents = GitHubEvents.Default({ token }).pipe(
+            const ghEvents = GitHubEvents.layer({ token }).pipe(
                 Layer.provide(httpClient),
             );
 
             // WHEN
-            const program = GitHubEvents.getEventsForUser(
-                username,
-                EventLimit.make(eventLimit),
+            const program = GitHubEvents.use((github) =>
+                github.getEventsForUser(username, EventLimit.make(eventLimit)),
             ).pipe(Effect.provide(ghEvents));
 
             // THEN
@@ -190,14 +187,16 @@ describe("GitHubEvents", () => {
         ) {
             // GIVEN
             const httpClient = Layer.succeed(HttpClient.HttpClient, client);
-            const ghEvents = GitHubEvents.Default({ token }).pipe(
+            const ghEvents = GitHubEvents.layer({ token }).pipe(
                 Layer.provide(httpClient),
             );
 
             // WHEN
-            const program = GitHubEvents.getEventsForUser(
-                username,
-                EventLimit.make(FAKE_PAGE_SIZE),
+            const program = GitHubEvents.use((github) =>
+                github.getEventsForUser(
+                    username,
+                    EventLimit.make(FAKE_PAGE_SIZE),
+                ),
             ).pipe(Effect.provide(ghEvents));
 
             // THEN
@@ -214,10 +213,11 @@ describe("GitHubEvents", () => {
         it.effect("fails when the HTTP request fails", () => {
             const httpClient = HttpClient.make((request) =>
                 Effect.fail(
-                    new HttpClientError.RequestError({
-                        request,
-                        reason: "Transport",
-                        cause: new Error("connection refused"),
+                    new HttpClientError.HttpClientError({
+                        reason: new HttpClientError.TransportError({
+                            request,
+                            cause: new Error("connection refused"),
+                        }),
                     }),
                 ),
             );

@@ -2,7 +2,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
 import { EventLimit } from "./limit.js";
 
-const decodeEventLimit = Schema.decodeUnknown(EventLimit);
+const decodeEventLimit = Schema.decodeUnknownEffect(EventLimit);
 
 describe("EventLimit", () => {
     it.effect("accepts integers in the valid range", () =>
@@ -22,7 +22,7 @@ describe("EventLimit", () => {
             Effect.flip,
             Effect.tap((error) =>
                 Effect.sync(() => {
-                    expect(error._tag).toBe("ParseError");
+                    expect(error._tag).toBe("SchemaError");
                 }),
             ),
         ),

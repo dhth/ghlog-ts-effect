@@ -6,7 +6,6 @@ import {
     pipe,
     Schema,
 } from "effect";
-import type { ParseError } from "effect/ParseResult";
 
 export type Event = {
     id: string;
@@ -151,7 +150,7 @@ export const RawEvent = Schema.Struct({
     type: Schema.NullOr(Schema.String),
     repo: Repo,
     payload: Schema.Unknown,
-    created_at: Schema.Date,
+    created_at: Schema.DateFromString,
 });
 
 export type RawEvent = typeof RawEvent.Type;
@@ -204,7 +203,7 @@ const RawReleaseEventPayload = Schema.Struct({
 export class DecodeEnvelopeError extends Data.TaggedError(
     "DecodeEnvelopeError",
 )<{
-    cause: ParseError;
+    cause: Schema.SchemaError;
 }> {
     override get message(): string {
         return "couldn't decode event envelope";
@@ -214,7 +213,7 @@ export class DecodeEnvelopeError extends Data.TaggedError(
 export class DecodePayloadError extends Data.TaggedError("DecodePayloadError")<{
     eventId: string;
     eventType: EventType;
-    cause: ParseError;
+    cause: Schema.SchemaError;
 }> {
     override get message(): string {
         return `couldn't decode event payload (id=${this.eventId}, type=${this.eventType})`;
@@ -227,7 +226,7 @@ export function decodeEvents(
     input: unknown,
 ): Effect.Effect<Event[], DecodeError> {
     return pipe(
-        Schema.decodeUnknown(RawEvents)(input).pipe(
+        Schema.decodeUnknownEffect(RawEvents)(input).pipe(
             Effect.mapError((cause) => new DecodeEnvelopeError({ cause })),
         ),
         Effect.flatMap((rawEvents) =>
@@ -269,8 +268,8 @@ function parseAndDecodePayload(
     input: unknown,
     eventId: string,
 ): Effect.Effect<EventPayload, DecodePayloadError> {
-    const decodeInto = <A, I>(schema: Schema.Schema<A, I>) =>
-        Schema.decodeUnknown(schema)(input).pipe(
+    const decodeInto = <A>(schema: Schema.Decoder<A>) =>
+        Schema.decodeUnknownEffect(schema)(input).pipe(
             Effect.mapError(
                 (cause) =>
                     new DecodePayloadError({ eventId, eventType, cause }),
