@@ -1,10 +1,10 @@
+import { Context, Data, Effect, Layer, type Redacted } from "effect";
 import {
     type Headers,
     HttpClient,
     type HttpClientError,
     HttpClientRequest,
-} from "@effect/platform";
-import { Data, Effect, type Redacted } from "effect";
+} from "effect/http";
 import {
     type DecodeError,
     decodeEvents,
@@ -16,11 +16,10 @@ const GITHUB_API_BASE = "https://api.github.com";
 const GITHUB_API_VERSION = "2026-03-10";
 const GITHUB_API_MAX_PER_PAGE = 100;
 
-export class GitHubEvents extends Effect.Service<GitHubEvents>()(
+export class GitHubEvents extends Context.Service<GitHubEvents>()(
     "GitHubEvents",
     {
-        accessors: true,
-        effect: (options: { readonly token: Redacted.Redacted<string> }) =>
+        make: (options: { readonly token: Redacted.Redacted<string> }) =>
             Effect.gen(function* () {
                 const httpClient = (yield* HttpClient.HttpClient).pipe(
                     HttpClient.mapRequest((request) =>
@@ -52,7 +51,11 @@ export class GitHubEvents extends Effect.Service<GitHubEvents>()(
                 } as const;
             }),
     },
-) {}
+) {
+    static readonly layer = (options: {
+        readonly token: Redacted.Redacted<string>;
+    }) => Layer.effect(this, this.make(options));
+}
 
 export class RequestFailedError extends Data.TaggedError("RequestFailedError")<{
     cause: HttpClientError.HttpClientError;
@@ -65,7 +68,7 @@ export class RequestFailedError extends Data.TaggedError("RequestFailedError")<{
 export class CouldntReadResponseBodyError extends Data.TaggedError(
     "CouldntReadResponseBodyError",
 )<{
-    cause: HttpClientError.ResponseError;
+    cause: HttpClientError.HttpClientError;
 }> {
     override get message(): string {
         return "couldn't read response body";

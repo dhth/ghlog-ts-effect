@@ -1,6 +1,6 @@
-import { FetchHttpClient } from "@effect/platform";
-import { NodeContext } from "@effect/platform-node";
+import { NodeServices } from "@effect/platform-node";
 import { Console, Effect, Layer, pipe } from "effect";
+import { FetchHttpClient } from "effect/http";
 import { getToken } from "./auth.js";
 import type { Event } from "./domain/event.js";
 import { EventLimit } from "./domain/limit.js";
@@ -10,15 +10,17 @@ import { GitHubEvents } from "./services/github/events.js";
 
 function main() {
     const run = pipe(
-        GitHubEvents.getEventsForUser("dhth", EventLimit.make(10)),
+        GitHubEvents.use((github) =>
+            github.getEventsForUser("dhth", EventLimit.make(10)),
+        ),
         Effect.map((events) => events.map(formatEvent).join("\n")),
     );
 
-    const ghCliLayer = GhCli.Default.pipe(Layer.provide(NodeContext.layer));
+    const ghCliLayer = GhCli.layer.pipe(Layer.provide(NodeServices.layer));
     const ghEventsLayer = getToken().pipe(
         Effect.provide(ghCliLayer),
-        Effect.map((token) => GitHubEvents.Default({ token })),
-        Layer.unwrapEffect,
+        Effect.map((token) => GitHubEvents.layer({ token })),
+        Layer.unwrap,
     );
 
     const program = run.pipe(
@@ -27,7 +29,7 @@ function main() {
         Effect.matchEffect({
             onSuccess: (result) => Console.log(`${result}`),
             onFailure: (error) =>
-                Effect.zipRight(
+                Effect.andThen(
                     Console.error(formatError(error)),
                     Effect.sync(() => {
                         process.exitCode = 1;

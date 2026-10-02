@@ -22,7 +22,7 @@ export function getToken(): Effect.Effect<
     GetTokenError,
     GhCli
 > {
-    const getFromConfig = Config.string(ENV_VAR_TOKEN).pipe(
+    const getFromConfig = Config.String(ENV_VAR_TOKEN).pipe(
         Effect.map((value) => value.trim()),
         Effect.filterOrFail(
             (value) => value.length > 0,
@@ -31,9 +31,9 @@ export function getToken(): Effect.Effect<
         Effect.map(Redacted.make),
     );
 
-    const getFromGh = GhCli.authToken().pipe(
+    const getFromGh = GhCli.use((gh) => gh.authToken()).pipe(
         Effect.mapError((cause) => new GetTokenError({ cause })),
     );
 
-    return getFromConfig.pipe(Effect.orElse(() => getFromGh));
+    return getFromConfig.pipe(Effect.catch(() => getFromGh));
 }

@@ -4,27 +4,21 @@ import { getToken } from "./auth.js";
 import { GhCli, GhTimedOutError } from "./services/github/cli.js";
 
 describe("getToken", () => {
-    const emptyConfigProvider = ConfigProvider.fromMap(new Map());
+    const emptyConfigProvider = ConfigProvider.fromUnknown({});
 
     describe("successes", () => {
         const configProviderForToken = (token: string) =>
-            ConfigProvider.fromMap(new Map([["GHLOG_TOKEN", token]]));
+            ConfigProvider.fromUnknown({ GHLOG_TOKEN: token });
 
-        const ghCliShouldNotRun = Layer.succeed(
-            GhCli,
-            new GhCli({
-                authToken: () =>
-                    Effect.dieMessage("gh cli should not have been invoked"),
-            }),
-        );
+        const ghCliShouldNotRun = Layer.succeed(GhCli, {
+            authToken: () =>
+                Effect.die(new Error("gh cli should not have been invoked")),
+        });
 
         const successfulGhCli = (token: string) =>
-            Layer.succeed(
-                GhCli,
-                new GhCli({
-                    authToken: () => Effect.succeed(Redacted.make(token)),
-                }),
-            );
+            Layer.succeed(GhCli, {
+                authToken: () => Effect.succeed(Redacted.make(token)),
+            });
 
         it.effect("gets the token from GHLOG_TOKEN", () => {
             // GIVEN
@@ -34,7 +28,10 @@ describe("getToken", () => {
 
             // WHEN
             const result = getToken().pipe(
-                Effect.withConfigProvider(configProvider),
+                Effect.provideService(
+                    ConfigProvider.ConfigProvider,
+                    configProvider,
+                ),
                 Effect.provide(ghCli),
             );
 
@@ -57,7 +54,10 @@ describe("getToken", () => {
 
             // WHEN
             const result = getToken().pipe(
-                Effect.withConfigProvider(configProvider),
+                Effect.provideService(
+                    ConfigProvider.ConfigProvider,
+                    configProvider,
+                ),
                 Effect.provide(ghCli),
             );
 
@@ -80,7 +80,10 @@ describe("getToken", () => {
 
             // WHEN
             const result = getToken().pipe(
-                Effect.withConfigProvider(configProvider),
+                Effect.provideService(
+                    ConfigProvider.ConfigProvider,
+                    configProvider,
+                ),
                 Effect.provide(ghCli),
             );
 
@@ -103,7 +106,10 @@ describe("getToken", () => {
 
             // WHEN
             const result = getToken().pipe(
-                Effect.withConfigProvider(configProvider),
+                Effect.provideService(
+                    ConfigProvider.ConfigProvider,
+                    configProvider,
+                ),
                 Effect.provide(ghCli),
             );
 
@@ -126,7 +132,10 @@ describe("getToken", () => {
 
             // WHEN
             const result = getToken().pipe(
-                Effect.withConfigProvider(configProvider),
+                Effect.provideService(
+                    ConfigProvider.ConfigProvider,
+                    configProvider,
+                ),
                 Effect.provide(ghCli),
             );
 
@@ -143,12 +152,9 @@ describe("getToken", () => {
     });
 
     describe("failures", () => {
-        const timingOutGhCli = Layer.succeed(
-            GhCli,
-            new GhCli({
-                authToken: () => Effect.fail(new GhTimedOutError()),
-            }),
-        );
+        const timingOutGhCli = Layer.succeed(GhCli, {
+            authToken: () => Effect.fail(new GhTimedOutError()),
+        });
 
         it.effect("fails if GHLOG_TOKEN is not set and gh fails", () => {
             // GIVEN
@@ -157,7 +163,10 @@ describe("getToken", () => {
 
             // WHEN
             const result = getToken().pipe(
-                Effect.withConfigProvider(configProvider),
+                Effect.provideService(
+                    ConfigProvider.ConfigProvider,
+                    configProvider,
+                ),
                 Effect.provide(ghCli),
             );
 
